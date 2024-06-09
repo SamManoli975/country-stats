@@ -1,0 +1,12 @@
+/* App.css */
+
+.tooltip {
+    position: absolute;
+    background: white;
+    border: 1px solid black;
+    padding: 5px;
+    border-radius: 3px;
+    pointer-events: none;
+    z-index: 1000;
+  }
+  
