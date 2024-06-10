@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import countryMapping from './countryMapping.json';
 import './App.css';
 
 function Map() {
@@ -16,16 +17,31 @@ function Map() {
       .catch(error => console.error('Error loading GeoJSON:', error));
   }, []);
 
-  async function fetchBirthRate(countryCode) {
+  async function fetchBirthRate(countryName) {
     try {
-      const response = await fetch(`https://api.worldbank.org/v2/country/russia/indicator/SP.DYN.CBRT.IN?format=json`);
+      const countryCode = countryMapping[countryName];
+      if (!countryCode) {
+        throw new Error(`No country code found for ${countryName}`);
+      }
+      
+      const response = await fetch(`https://api.worldbank.org/v2/country/${countryCode}/indicator/SP.POP.TOTL?format=json`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+  
       const data = await response.json();
-      return data;
+      const populationData = data[1];
+      const latestPopulationEntry = populationData.find(entry => entry.value !== null);
+  
+      if (latestPopulationEntry) {
+        return latestPopulationEntry.value;
+      } else {
+        console.error('No valid population data found.');
+        return null;
+      }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching population data:', error);
+      return null;
     }
   }
 
@@ -42,7 +58,6 @@ function Map() {
           name: country.properties.name,
         });
 
-        fetchBirthRate(country.name).then(data => console.log(data));
       },
       mouseout: () => {
         setTooltip({
@@ -54,7 +69,7 @@ function Map() {
       },
       click: () => {
         setFlashingCountry(country.properties.name);
-        fetchBirthRate(country.properties.name)
+        fetchBirthRate(country.properties.name).then(data => console.log(data))
         setTimeout(() => {
           setFlashingCountry(null);
         }, 1000); // Flashing duration, adjust as needed
