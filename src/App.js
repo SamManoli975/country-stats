@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import countryMapping from './countryMapping.json';
+import indicatorNames from './indicatorMap.json'
 import './App.css';
 
 function Map() {
-
   const [geoData, setGeoData] = useState(null);
   const [tooltip, setTooltip] = useState({ show: false, x: 0, y: 0, name: '' });
   const [flashingCountry, setFlashingCountry] = useState(null);
+  const [countryData, setCountryData] = useState(null); // State to hold country data
 
   useEffect(() => {
     fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
@@ -30,39 +31,30 @@ function Map() {
       }
 
       const data = await response.json();
-      console.log("API Response:", JSON.stringify(data, null, 2)); // Log the entire response
 
       if (!Array.isArray(data) || data.length < 2 || !Array.isArray(data[1])) {
         throw new Error('Unexpected data format');
       }
 
-      // Extract data
-      const populationData = data[1].filter(entry => entry.indicator.id === 'SP.POP.TOTL' && entry.value !== null);
-      const mortalityData = data[1].filter(entry => entry.indicator.id === 'SH.DYN.MORT' && entry.value !== null);
+      // Initialize an object to hold country data
+      const countryDataObj = {};
 
+      // Process each indicator and store its value in the object
+      data[1].forEach(entry => {
+        if (entry.value !== null) {
+          countryDataObj[indicatorNames[entry.indicator.id]] = entry.value;
+        }
+      });
 
-      const latestPopulationEntry = populationData.length ? populationData[0] : null;
-      const latestMortalityEntry = mortalityData.length ? mortalityData[0] : null;
+      // Set the country data state
+      setCountryData(countryDataObj);
 
-      const population = latestPopulationEntry ? latestPopulationEntry.value : null;
-      const mortality = latestMortalityEntry ? latestMortalityEntry.value : null;
-
-      if (population === null) {
-        console.error('No valid population data found.');
-      }
-
-      if (mortality === null) {
-        console.error('No valid mortality data found.');
-      }
-
-      return { population, mortality, data };
     } catch (error) {
       console.error('Error fetching country data:', error);
-      return { population: null, mortality: null, data: null };
+      // Reset country data if error occurs
+      setCountryData(null);
     }
   }
-
-
 
   const onEachCountry = (country, layer) => {
     layer.on({
@@ -73,7 +65,6 @@ function Map() {
           y: e.originalEvent.clientY,
           name: country.properties.name,
         });
-
       },
       mouseout: () => {
         setTooltip({
@@ -85,7 +76,7 @@ function Map() {
       },
       click: () => {
         setFlashingCountry(country.properties.name);
-        fetchCountryData(country.properties.name).then(data => console.log(data))
+        fetchCountryData(country.properties.name);
         setTimeout(() => {
           setFlashingCountry(null);
         }, 1000); // Flashing duration, adjust as needed
@@ -102,7 +93,7 @@ function Map() {
 
   return (
     <div>
-      <MapContainer center={[20, 0]} zoom={2} style={{ height: "100vh", width: "100%" }}>
+      <MapContainer center={[20, 0]} zoom={3} minZoom={3} maxZoom={10} style={{ height: "100vh", width: "75%", float: "left" }}>
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -126,8 +117,20 @@ function Map() {
           <strong>{tooltip.name}</strong>
         </div>
       )}
+      {countryData && ( // Render country data if available
+        <div className="data-container" style={{ backgroundColor: "black", color: "white", float: "right", width: "25%", height: "100vh", overflow: "auto" }}>
+          <h1>Country Data</h1>
+          <ul className='data'>
+            {Object.entries(countryData).map(([indicator, value]) => (
+              <li key={indicator}>
+                <strong>{indicator}:</strong> {value}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
 
-export default Map;
+export default Map

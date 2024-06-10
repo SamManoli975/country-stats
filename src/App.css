@@ -9,4 +9,13 @@
     pointer-events: none;
     z-index: 1000;
   }
-  
+
+  .data{
+    background-color: black;
+    right: 0px;
+    color: white;
+
+  }
+  .data-container{
+    color: black;
+  }
