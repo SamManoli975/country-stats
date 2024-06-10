@@ -17,34 +17,50 @@ function Map() {
       .catch(error => console.error('Error loading GeoJSON:', error));
   }, []);
 
-  async function fetchBirthRate(countryName) {
+  async function fetchCountryData(countryName) {
     try {
       const countryCode = countryMapping[countryName];
       if (!countryCode) {
         throw new Error(`No country code found for ${countryName}`);
       }
-      
-      const response = await fetch(`https://api.worldbank.org/v2/country/${countryCode}/indicator/SP.POP.TOTL?format=json`);
+
+      const response = await fetch(`https://api.worldbank.org/v2/country/${countryCode}/indicator/SP.POP.TOTL;SP.DYN.LE00.IN;NY.GDP.MKTP.CD;NY.GDP.PCAP.CD;SH.DYN.MORT;SH.XPD.CHEX.PC.CD;SL.UEM.TOTL.ZS;SE.XPD.TOTL.GD.ZS;AG.LND.FRST.ZS;EG.ELC.ACCS.ZS;EN.ATM.CO2E.PC?date=2021&source=2&format=json`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-  
+
       const data = await response.json();
-      const populationData = data[1];
-      const latestPopulationEntry = populationData.find(entry => entry.value !== null);
-  
-      if (latestPopulationEntry) {
-        return latestPopulationEntry.value;
-      } else {
-        console.error('No valid population data found.');
-        return null;
+      console.log("API Response:", JSON.stringify(data, null, 2)); // Log the entire response
+
+      if (!Array.isArray(data) || data.length < 2 || !Array.isArray(data[1])) {
+        throw new Error('Unexpected data format');
       }
+
+      // Extract data
+      const populationData = data[1].filter(entry => entry.indicator.id === 'SP.POP.TOTL' && entry.value !== null);
+      const mortalityData = data[1].filter(entry => entry.indicator.id === 'SH.DYN.MORT' && entry.value !== null);
+
+
+      const latestPopulationEntry = populationData.length ? populationData[0] : null;
+      const latestMortalityEntry = mortalityData.length ? mortalityData[0] : null;
+
+      const population = latestPopulationEntry ? latestPopulationEntry.value : null;
+      const mortality = latestMortalityEntry ? latestMortalityEntry.value : null;
+
+      if (population === null) {
+        console.error('No valid population data found.');
+      }
+
+      if (mortality === null) {
+        console.error('No valid mortality data found.');
+      }
+
+      return { population, mortality, data };
     } catch (error) {
-      console.error('Error fetching population data:', error);
-      return null;
+      console.error('Error fetching country data:', error);
+      return { population: null, mortality: null, data: null };
     }
   }
-
 
 
 
@@ -69,7 +85,7 @@ function Map() {
       },
       click: () => {
         setFlashingCountry(country.properties.name);
-        fetchBirthRate(country.properties.name).then(data => console.log(data))
+        fetchCountryData(country.properties.name).then(data => console.log(data))
         setTimeout(() => {
           setFlashingCountry(null);
         }, 1000); // Flashing duration, adjust as needed
